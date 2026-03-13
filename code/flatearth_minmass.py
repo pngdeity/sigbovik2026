@@ -12,10 +12,16 @@ Lambda is increased until no constraint violations remain.
 """
 
 import numpy as np
+from datetime import datetime
 import torch
+import gc
+import torch.utils.checkpoint as ckpt
 import matplotlib.pyplot as plt
 import matplotlib; matplotlib.use('Agg')
 from scipy.special import ellipk, ellipe
+
+torch.cuda.empty_cache()
+gc.collect()
 
 d = {'device': 'cuda', 'dtype': torch.float32}
 print(d)
@@ -23,12 +29,13 @@ print(d)
 # --- Parameters ---
 disk_r = 0.5
 g0     = 1.0     # target field magnitude (kernel convention: positive downward)
-epsilon = 0.025   # field vector tolerance
+epsilon = 0.005   # field vector tolerance
 
-n_src = 3500
-n_obs = 1500
-n_z   = 30        # Gauss-Legendre quadrature points (exponential convergence)
-R_ext = disk_r * 7.0
+n_src = 5000
+n_obs = 400
+n_z   = 80        # Gauss-Legendre quadrature points (exponential convergence)
+smoothing = 1e3
+R_ext = 2 * 3.0
 
 # --- Precompute elliptic integral lookup tables ---
 N_table = 100_000
@@ -73,6 +80,34 @@ z_frac    = torch.tensor(z_frac,    **d)
 z_weights = torch.tensor(z_weights, **d)
 
 
+src_chunk = 512   # tune to fit GPU memory
+
+def _field_chunk(b_c, rs_c):
+    """Field contribution from one chunk of sources. Recomputed during backward."""
+    ro  = r_obs[:, None, None]
+    rs  = rs_c[None, :, None]
+    zf  = z_frac[None, None, :]
+    zw  = z_weights[None, None, :]
+
+    z_  = b_c[None, :, None] * zf
+    dz_ = b_c[None, :, None] * zw
+
+    beta2  = (ro + rs)**2 + z_**2
+    alpha2 = torch.clamp((ro - rs)**2 + z_**2, min=1e-20)
+    beta   = torch.sqrt(torch.clamp(beta2, min=1e-30))
+    k2     = torch.clamp(4 * ro * rs / torch.clamp(beta2, min=1e-30), 0.0, 1.0 - 1e-7)
+
+    K, E = elliptic_KE(k2)
+
+    gz_k = z_ * 4 * E / (beta * alpha2)
+    ro_safe = torch.clamp(ro, min=1e-10)
+    gr_k = 2 / (ro_safe * beta) * ((ro**2 - rs**2 - z_**2) / alpha2 * E + K)
+
+    weight = dz_ * rs * dr
+    return (gz_k * weight).sum(dim=(1, 2)), (gr_k * weight).sum(dim=(1, 2))
+
+# _field_chunk = torch.compile(_field_chunk, mode='default')
+
 def compute_field(b_vals):
     """Compute g_z, g_r at r_obs for slab with bottom at b_vals.
 
@@ -81,35 +116,16 @@ def compute_field(b_vals):
     Returns:
         gz, gr: (n_obs,) tensors
     """
-    # Broadcast to (n_obs, n_src, n_z)
-    ro = r_obs[:, None, None]          # (n_obs, 1, 1)
-    rs = r_src[None, :, None]          # (1, n_src, 1)
-    zf = z_frac[None, None, :]         # (1, 1, n_z)
+    gz = torch.zeros(n_obs, **d)
+    gr = torch.zeros(n_obs, **d)
 
-    zw  = z_weights[None, None, :]     # (1, 1, n_z) GL weights (sum to 1)
-    z_  = b_vals[None, :, None] * zf  # (n_obs, n_src, n_z)  — actual depths
-    dz_ = b_vals[None, :, None] * zw  # GL-weighted dz (replaces b/n_z * uniform)
+    for s in range(0, n_src, src_chunk):
+        rs_c = r_src[s:s+src_chunk]
+        b_c  = b_vals[s:s+src_chunk]
+        dgz, dgr = ckpt.checkpoint(_field_chunk, b_c, rs_c, use_reentrant=False)
+        gz = gz + dgz
+        gr = gr + dgr
 
-    beta2  = (ro + rs)**2 + z_**2
-    alpha2 = (ro - rs)**2 + z_**2
-    alpha2 = torch.clamp(alpha2, min=1e-20)
-    beta   = torch.sqrt(torch.clamp(beta2, min=1e-30))
-
-    k2 = torch.clamp(4 * ro * rs / torch.clamp(beta2, min=1e-30), 0.0, 1.0 - 1e-7)
-
-    K, E = elliptic_KE(k2)
-
-    # Vertical field kernel: z' * 4E / (beta * alpha²)
-    gz_k = z_ * 4 * E / (beta * alpha2)
-
-    # Radial field kernel: 2/(r*beta) * [(r²-r'²-z'²)/alpha² * E + K]
-    ro_safe = torch.clamp(ro, min=1e-10)
-    gr_k = 2 / (ro_safe * beta) * ((ro**2 - rs**2 - z_**2) / alpha2 * E + K)
-
-    # Integrate: dr * dz * r_src weight
-    weight = dz_ * rs * dr   # (n_obs, n_src, n_z)
-    gz = (gz_k * weight).sum(dim=(1, 2))
-    gr = (gr_k * weight).sum(dim=(1, 2))
     return gz, gr
 
 
@@ -143,8 +159,8 @@ def run_opt(lam, n_steps=2000, log_every=500):
         err  = torch.sqrt((gz - g0)**2 + gr**2)
         penalty = torch.relu(err - epsilon).pow(2).mean()
         # Tiny smoothness term to suppress null-space notches (1e-4 << mass ~0.6)
-        # smooth = 1e-4 * ((log_b[1:] - log_b[:-1])**2).mean()
-        loss = mass + lam * penalty # + smooth
+        smooth = smoothing * ((log_b[1:] - log_b[:-1])**2).mean()
+        loss = mass + lam * penalty + smooth
 
         loss.backward()
         optimizer.step()
@@ -153,14 +169,16 @@ def run_opt(lam, n_steps=2000, log_every=500):
         with torch.no_grad():
             log_b.clamp_(-8, 2)
 
-        if step % log_every == 0 or step == n_steps - 1:
+
+        if step % log_every == 0:
             with torch.no_grad():
                 viol = (err > epsilon).sum().item()
-            print(f"  λ={lam:.0f} step={step:4d}: mass={mass.item():.4f}, "
-                  f"max_err={err.max().item():.4f}, violations={viol}/{n_obs}")
+            print(f"  step={step:4d}: mass={mass.item():.4f}, "
+                  f"max_err={err.max().item():.4f}, smooth={smooth}")
+                  # f"max_err={err.max().item():.4f}, violations={viol}/{n_obs}")
 
 # Progressive lambda schedule
-for lam in [100000]:
+for lam in [10000, 100000]:
     print(f"\n--- Lambda = {lam} ---")
     run_opt(lam, n_steps=3000, log_every=1000)
 
@@ -179,9 +197,9 @@ with torch.no_grad():
 print(f"\n--- Final ---")
 print(f"Mass:               {mass_final:.4f}")
 print(f"Max field error:    {err_np.max():.4f}  (ε={epsilon})")
-print(f"Violations:         {np.sum(err_np > epsilon)}/{n_obs}")
-print(f"g_z range:          [{gz_np.min():.4f}, {gz_np.max():.4f}]")
-print(f"g_r max:            {np.abs(gr_np).max():.4f}")
+# print(f"Violations:         {np.sum(err_np > epsilon)}/{n_obs}")
+# print(f"g_z range:          [{gz_np.min():.4f}, {gz_np.max():.4f}]")
+# print(f"g_r max:            {np.abs(gr_np).max():.4f}")
 
 # --- Plot ---
 # %% plot
@@ -215,7 +233,15 @@ ax.axhline(epsilon, color='r', ls='--', label=f'ε={epsilon}')
 ax.set_title('|g - target|'); ax.set_xlabel('r'); ax.legend()
 
 plt.tight_layout()
-fig.text(0.01, 0.01, f'n_src={n_src}  n_obs={n_obs}  n_z={n_z}',
+fig.text(0.01, 0.01, f'n_src={n_src}  n_obs={n_obs}  n_z={n_z} smooth={smoothing}',
          fontsize=8, color='gray', va='bottom', ha='left')
-plt.savefig('/www/flatearth_minmass.png', dpi=150)
+plt.savefig('/www/flatearth/minmass.png', dpi=150)
+plt.savefig(f'/www/flatearth/archive/minmass_{datetime.utcnow().isoformat()}.png', dpi=150)
 print("Saved to /www/flatearth_minmass.png")
+
+# --- Save outputs for downstream analysis ---
+np.savez('/www/flatearth_result.npz',
+         b_opt=b_np, r_src=r_src_np,
+         gz=gz_np, gr=gr_np, err=err_np, r_obs=r_obs_np,
+         meta=np.array([epsilon, g0, disk_r, float(n_src), float(n_obs)]))
+print(f"Saved results to /www/flatearth_result.npz")
