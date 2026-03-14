@@ -31,9 +31,9 @@ disk_r = 0.5
 g0     = 1.0     # target field magnitude (kernel convention: positive downward)
 epsilon = 0.005   # field vector tolerance
 
-n_src = 5000
-n_obs = 400
-n_z   = 80        # Gauss-Legendre quadrature points (exponential convergence)
+n_src = 50000
+n_obs = 300
+n_z   = 120        # Gauss-Legendre quadrature points (exponential convergence)
 smoothing = 1e3
 R_ext = 2 * 3.0
 
@@ -233,8 +233,9 @@ ax.axhline(epsilon, color='r', ls='--', label=f'ε={epsilon}')
 ax.set_title('|g - target|'); ax.set_xlabel('r'); ax.legend()
 
 plt.tight_layout()
-fig.text(0.01, 0.01, f'n_src={n_src}  n_obs={n_obs}  n_z={n_z} smooth={smoothing}',
+fig.text(0.01, 0.01, text:=f'n_src={n_src}  n_obs={n_obs}  n_z={n_z} smooth={smoothing}',
          fontsize=8, color='gray', va='bottom', ha='left')
+print(text)
 plt.savefig('/www/flatearth/minmass.png', dpi=150)
 plt.savefig(f'/www/flatearth/archive/minmass_{datetime.utcnow().isoformat()}.png', dpi=150)
 print("Saved to /www/flatearth_minmass.png")
