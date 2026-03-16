@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Minimum-mass axisymmetric slab, analytic Jacobian via FTC.
+"""Minimum-mass axisymmetric slab with custom autograd kernel.
 
-Find b(r') minimizing mass subject to:
-  sqrt((g_z(r) - g0)^2 + g_r(r)^2) <= epsilon   for all r <= R
+SlabField.apply(b) computes (g_z, g_r) with:
+  forward:  8-point midpoint sum over z
+  backward: analytic Jacobian via FTC (kernel evaluated once at z=b)
 
-The Jacobian dg/db is obtained by evaluating kernels at the slab boundary
-z'=-b(r'), requiring no z-integration or autograd.  Forward field uses a
-lightweight midpoint sum.
+Loss function is arbitrary PyTorch; optimizer is standard Adam.
 """
 
 import numpy as np
@@ -25,11 +24,11 @@ print(d)
 disk_r    = 0.5
 g0        = 1.0
 epsilon   = 0.005
-n_src     = 50000
-n_obs     = 300
-n_z       = 8         # forward-model z-slices (midpoint rule)
-smoothing = 1e3
-R_ext     = 2 * 3.0
+n_src     = 15000
+n_obs     = 500
+n_z       = 8
+smoothing = 0e-3
+R_ext     = 2 * 16.0
 
 # --- Elliptic integral lookup tables ---
 N_table = 100_000
@@ -55,13 +54,12 @@ r_obs_np = np.linspace(disk_r / n_obs, disk_r * 0.99, n_obs)
 r_src = torch.tensor(r_src_np, **d)
 r_obs = torch.tensor(r_obs_np, **d)
 
-# Pre-expand for (n_obs, n_src) broadcasting
-ro      = r_obs[:, None]            # (n_obs, 1)
-rs      = r_src[None, :]            # (1, n_src)
+ro      = r_obs[:, None]
+rs      = r_src[None, :]
 ro_safe = ro.clamp(min=1e-10)
 
 def _kernels(z):
-    """Kz, Kr at positive depth z.  z shape broadcasts to (n_obs, n_src)."""
+    """Kz, Kr at positive depth z (broadcasts to (n_obs, n_src))."""
     alpha2 = (ro - rs)**2 + z**2
     beta2  = (ro + rs)**2 + z**2
     beta   = torch.sqrt(beta2.clamp(min=1e-30))
@@ -72,27 +70,39 @@ def _kernels(z):
         (ro**2 - rs**2 - z**2) / alpha2.clamp(min=1e-20) * E + K)
     return Kz, Kr
 
-def compute_field(b):
-    """g_z, g_r via midpoint sum over z (no autograd)."""
-    bv = b[None, :]
-    wt = bv * rs * dr / n_z
-    gz = torch.zeros(n_obs, **d)
-    gr = torch.zeros(n_obs, **d)
-    for k in range(n_z):
-        Kz, Kr = _kernels(bv * ((k + 0.5) / n_z))
-        gz = gz + (Kz * wt).sum(1)
-        gr = gr + (Kr * wt).sum(1)
-    return gz, gr
 
-def compute_jacobian(b):
-    """dg/db via FTC: kernel at z=b(r') times r' dr'.  Returns (n_obs, n_src)."""
-    Kz, Kr = _kernels(b[None, :])
-    return Kz * (rs * dr), Kr * (rs * dr)
+class SlabField(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, b):
+        """g_z, g_r via midpoint sum over z (no graph stored)."""
+        with torch.no_grad():
+            bv = b[None, :]
+            wt = bv * rs * dr / n_z
+            gz = torch.zeros(n_obs, **d)
+            gr = torch.zeros(n_obs, **d)
+            for k in range(n_z):
+                Kz, Kr = _kernels(bv * ((k + 0.5) / n_z))
+                gz = gz + (Kz * wt).sum(1)
+                gr = gr + (Kr * wt).sum(1)
+        ctx.save_for_backward(b)
+        return gz, gr
+
+    @staticmethod
+    def backward(ctx, grad_gz, grad_gr):
+        """Analytic Jacobian-vector product: J^T @ grad via FTC."""
+        (b,) = ctx.saved_tensors
+        with torch.no_grad():
+            Jz, Jr = _kernels(b[None, :])
+            Jz = Jz * (rs * dr)   # (n_obs, n_src)
+            Jr = Jr * (rs * dr)
+            grad_b = grad_gz @ Jz + grad_gr @ Jr   # (n_src,)
+        return grad_b
+
 
 # --- Validation ---
 with torch.no_grad():
     b_test = torch.full((n_src,), 0.1, **d)
-    gz_t, gr_t = compute_field(b_test)
+    gz_t, gr_t = SlabField.apply(b_test)
     print(f"Validation — uniform slab b=0.1:")
     print(f"  ε = {epsilon:.4f}")
     print(f"  g_z = {gz_t.mean().item():.4f} (infinite-slab limit: {2*np.pi*0.1:.4f})")
@@ -100,69 +110,46 @@ with torch.no_grad():
     b0_val = float(abs(g0) / gz_t.mean().item() * 0.1)
     print(f"  Estimated b0 for |g_z|=1: {b0_val:.4f}")
 
-# --- Optimization (manual Adam, analytic gradient) ---
-log_b = torch.full((n_src,), float(np.log(b0_val)), **d)
+# --- Optimization ---
+log_b = torch.full((n_src,), np.log(b0_val), **d, requires_grad=True)
 
-m_adam = torch.zeros(n_src, **d)
-v_adam = torch.zeros(n_src, **d)
-beta1, beta2a, eps_a = 0.9, 0.999, 1e-8
-step_g = 0
-lr_base = 3e-3
-eta_min = 1e-4
-T_max   = 3000
+optimizer = torch.optim.Adam([log_b], lr=3e-3)
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=3000, eta_min=1e-4)
 
 def run_opt(lam, n_steps=2000, log_every=500):
-    global step_g, m_adam, v_adam, log_b
-
     for step in range(n_steps):
-        step_g += 1
+        optimizer.zero_grad()
         b = torch.exp(log_b)
 
-        gz, gr = compute_field(b)
-        Jz, Jr = compute_jacobian(b)
+        gz, gr = SlabField.apply(b)
 
-        # --- loss components ---
-        mass = 2 * np.pi * (b * r_src * dr).sum()
-        err  = torch.sqrt((gz - g0)**2 + gr**2)
+        mass    = 2 * np.pi * (b * r_src * dr).sum()
+        err     = torch.sqrt((gz - g0)**2 + gr**2)
+        # penalty = torch.relu(err - epsilon).sum().pow(4)
+        penalty = torch.relu(err - epsilon).pow(4).mean()
+        # smooth  = smoothing * log_b.diff().pow(2).mean()
+        smooth  = smoothing * (log_b.diff() / dr).pow(2).mean() * R_ext
+        loss    = mass + lam * penalty + smooth
 
-        # penalty gradient  d/db[ mean relu(err-ε)^2 ]
-        scale  = 2 * torch.relu(err - epsilon) / (n_obs * err.clamp(min=1e-10))
-        dp_dgz = scale * (gz - g0)                        # (n_obs,)
-        dp_dgr = scale * gr
+        loss.backward()
+        optimizer.step()
+        scheduler.step()
 
-        grad_b = 2 * np.pi * r_src * dr + lam * (dp_dgz @ Jz + dp_dgr @ Jr)
-
-        # smoothness on log_b
-        diff = log_b[1:] - log_b[:-1]
-        s_grad = torch.zeros_like(log_b)
-        s_grad[:-1] -= 2 * smoothing * diff / (n_src - 1)
-        s_grad[1:]  += 2 * smoothing * diff / (n_src - 1)
-
-        grad = grad_b * b + s_grad          # chain rule to log_b
-
-        # Adam update
-        m_adam = beta1  * m_adam + (1 - beta1)  * grad
-        v_adam = beta2a * v_adam + (1 - beta2a) * grad**2
-        m_hat  = m_adam / (1 - beta1  ** step_g)
-        v_hat  = v_adam / (1 - beta2a ** step_g)
-        t_cos  = min(step_g, T_max) / T_max
-        lr = eta_min + (lr_base - eta_min) * 0.5 * (1 + np.cos(np.pi * t_cos))
-        log_b = (log_b - lr * m_hat / (torch.sqrt(v_hat) + eps_a)).clamp(-8, 2)
+        with torch.no_grad():
+            log_b.clamp_(-8, 2)
 
         if step % log_every == 0:
-            smooth_val = smoothing * (diff**2).mean()
             print(f"  step={step:4d}: mass={mass.item():.4f}, "
-                  f"max_err={err.max().item():.4f}, smooth={smooth_val.item():.1f}")
+                  f"max_err={err.max().item():.4f}, smooth={smooth.item():.1f}")
 
-# Progressive lambda schedule
-for lam in [10000, 100000]:
-    print(f"\n--- Lambda = {lam} ---")
+for lam in [1e4, 1e5, 1e6, 1e7, 1e8]:
+    print(f"\n--- Lambda = {lam:.0e} ---")
     run_opt(lam, n_steps=3000, log_every=1000)
 
 # --- Final evaluation ---
 with torch.no_grad():
     b_opt = torch.exp(log_b)
-    gz_opt, gr_opt = compute_field(b_opt)
+    gz_opt, gr_opt = SlabField.apply(b_opt)
     err_opt = torch.sqrt((gz_opt - g0)**2 + gr_opt**2)
 
     b_np   = b_opt.cpu().numpy()
@@ -176,6 +163,8 @@ print(f"Mass:               {mass_final:.4f}")
 print(f"Max field error:    {err_np.max():.4f}  (ε={epsilon})")
 
 # --- Plot ---
+# %% plot
+
 fig, axes = plt.subplots(1, 3, figsize=(15, 5))
 
 ax = axes[0]
@@ -188,7 +177,7 @@ ax.axvline( disk_r, color='r', ls='--', alpha=0.3)
 ax.axvline(-disk_r, color='r', ls='--', alpha=0.3)
 ax.set_xlim(-R_ext/2, R_ext/2)
 ax.set_ylim(-b_np.max()*1.3, b_np.max()*0.3)
-ax.set_aspect('equal')
+ax.set_aspect(0.25 * R_ext / (b_np.max()))
 ax.set_title(f'Min-mass slab (ε={epsilon}, actual ε_max={err_np.max():.3f})')
 ax.set_xlabel('r'); ax.set_ylabel('z'); ax.legend()
 

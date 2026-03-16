@@ -2,21 +2,21 @@
 
 ## Objective
 
-Find an axisymmetric mass distribution $\rho(r,z) \geq 0$ in the half-space
-$z \leq 0$ such that the gravitational field on a disk of radius $R$ at $z=0$
+Find an axisymmetric mass distribution $\rho(r',z') \geq 0$ in the half-space
+$z' \leq 0$ such that the gravitational field on a disk of radius $R$ at $z=0$
 is uniform in magnitude and vertical. The general forward model is:
 
-$$g_z(r) = \int_0^{r_{\max}} \int_0^{\infty} K_z(r,r',z)\,\rho(r',z)\;r'\,dr'\,dz$$
+$$g_z(r) = \int_0^{r_{\max}} \int_{-\infty}^{0} K_z(r,r',z')\,\rho(r',z')\;r'\,dr'\,dz'$$
 
-$$g_r(r) = \int_0^{r_{\max}} \int_0^{\infty} K_r(r,r',z)\,\rho(r',z)\;r'\,dr'\,dz$$
+$$g_r(r) = \int_0^{r_{\max}} \int_{-\infty}^{0} K_r(r,r',z')\,\rho(r',z')\;r'\,dr'\,dz'$$
 
 where the kernels, obtained by azimuthal integration of the 3D Green's
 function, are:
 
-$$K_z(r,r',z) = \frac{4z\,E(k^2)}{\beta\,\alpha^2}, \qquad
-  K_r(r,r',z) = \frac{2}{r\,\beta}\left[\frac{r^2-r'^2-z^2}{\alpha^2}E(k^2)+K(k^2)\right]$$
+$$K_z(r,r',z') = \frac{4z'\,E(k^2)}{\beta\,\alpha^2}, \qquad
+  K_r(r,r',z') = \frac{2}{r\,\beta}\left[\frac{r^2-r'^2-z'^2}{\alpha^2}E(k^2)+K(k^2)\right]$$
 
-with $\alpha^2=(r-r')^2+z^2$, $\beta^2=(r+r')^2+z^2$, $k^2=4rr'/\beta^2$,
+with $\alpha^2=(r-r')^2+z'^2$, $\beta^2=(r+r')^2+z'^2$, $k^2=4rr'/\beta^2$,
 and $K$, $E$ the complete elliptic integrals of the first and second kind.
 
 The field constraint is:
@@ -37,15 +37,15 @@ Convex, likely unique, tractable via discrete LP on a grid. See `code/LP.md`.
 (NP-hard). Solution consists of filled 2D blobs in the $(r,z)$ cross-section
 (solid tori in 3D). Disconnected regions allowed.
 
-**Slab** ($\rho = \mathbf{1}_{0 \leq z \leq b(r)}$, unit density): special
+**Slab** ($\rho = \mathbf{1}_{-b(r') \leq z' \leq 0}$, unit density): special
 case of binary where the occupied region is connected and touches the surface.
-Reduces to finding a 1D boundary $b(r) \geq 0$. Nonconvex but tractable
-with gradient-based methods. **Current approach.** Forward model reduces to:
+Reduces to finding a 1D boundary $b(r') \geq 0$. Nonconvex but tractable
+with gradient-based methods. **Current approach.** The Jacobian of the field with respect to the boundary is obtained by evaluating the kernels at $z'=-b(r')$:
 
-$$g_z(r) = \int_0^{r_{\max}} \int_0^{b(r')} K_z(r,r',z)\;dz\;r'\,dr'$$
+$$\frac{\partial g_z(r)}{\partial b(r')} = \frac{4\,b(r')\,E(k^2)}{\beta\,\alpha^2}\cdot r', \qquad
+  \frac{\partial g_r(r)}{\partial b(r')} = \frac{2r'}{r\,\beta}\left[\frac{r^2-r'^2-b(r')^2}{\alpha^2}E(k^2)+K(k^2)\right]$$
 
-and similarly for $g_r$. The $z$-integral is evaluated by Gauss-Legendre
-quadrature; $K$ and $E$ via precomputed lookup tables.
+with $\alpha^2=(r-r')^2+b(r')^2$, $\beta^2=(r+r')^2+b(r')^2$, $k^2=4rr'/\beta^2$.
 
 ## Why Perfect Uniformity is Impossible
 
@@ -71,19 +71,19 @@ criterion, not the physics.**
 | Min mass, slab $b(r)$ | Flanged slab; mass concentrated at $r\approx R$ |
 | Min second moment | Deep central bowl |
 | Min perimeter (TV) | Slab + rectangular flanges |
-| LP over $\rho(r,z)\geq 0$ | $\sim$11 sparse rings (see `LP.md`) |
+| LP over $\rho(r',z')\geq 0$ | $\sim$11 sparse rings (see `LP.md`) |
 
 **Current approach: minimum mass** — the only criterion that is naturally
 window-independent (distant mass contributes little field per unit mass).
 
 ## Current Loss Function
 
-$$L = 2\pi\int b(r)\,r\,dr + \lambda\cdot\frac{1}{n_{\rm obs}}
+$$L = 2\pi\int b(r')\,r'\,dr' + \lambda\cdot\frac{1}{n_{\rm obs}}
      \sum_i \mathrm{ReLU}(\mathrm{err}_i-\varepsilon)^2$$
 
 Penalty weight $\lambda$ is ramped up in stages until all constraints are
-satisfied. Implemented in PyTorch (CUDA) with Adam; $b(r)$ parameterized as
-$\exp(\ell(r))$ to enforce positivity. See `code/flatearth_minmass.py`.
+satisfied. Implemented in PyTorch (CUDA) with Adam; $b(r')$ parameterized as
+$\exp(\ell(r'))$ to enforce positivity. See `code/flatearth_minmass.py`.
 
 Latest plot is saved to `/www/flatearth/minimass.png`
 
