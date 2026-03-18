@@ -23,12 +23,25 @@ $$\min_{\rho \geq 0} \; c^T \rho \quad \text{subject to} \quad
 ## Why the Solution Should Be Sparse (Rings)
 
 By the fundamental theorem of linear programming, any optimal vertex solution
-has at most $n_{\rm constraints}$ nonzero variables. With $n_{\rm obs}$
-observation points and 2 field components, the active constraints number
-$\sim 2 n_{\rm obs}$. The SVD analysis suggests only $\sim$11 of these are
-independent. Therefore the LP solution is expected to have $\sim$11 nonzero
-$\rho_{jk}$ — i.e., mass concentrated on $\sim$11 rings at specific
-$(r_j, z_k)$ locations.
+has at most $n_{\rm active}$ nonzero variables, where $n_{\rm active}$ is the
+number of active (binding) constraints at the optimum. The actual number of
+rings is determined by the LP solution itself and should be read off directly
+from the number of nonzero $\rho_{jk}$ — not estimated from SVD.
+
+## Known Issue: Ill-Posedness
+
+The unconstrained LP ($\rho \geq 0$, no upper bound) is **mathematically
+ill-posed**. The kernel has a singularity: $K_z \sim \pi/(r' \cdot z')$ as
+$z' \to 0$ with $r' = r$. This means a thin ring at $(r' = r_{\rm obs}, z' \to 0)$
+produces finite field contribution while its mass goes to zero. The continuous LP
+infimum is zero; the discrete LP on a finite grid converges to a surface sheet at
+$z' = z_{\min}$ as resolution increases. This is physically valid (surface mass
+distributions are real) but removes all information about optimal depth and
+geometry.
+
+**Fixes**: either impose a minimum-depth constraint $z' \geq z_{\min}$,
+restrict to $\rho \in [0,1]$ with minimum depth, or reformulate directly as a
+surface distribution $\sigma(r')$.
 
 ## Properties
 
@@ -46,7 +59,7 @@ $(r_j, z_k)$ locations.
 
 - Build $A^z$ and $A^r$ using the same elliptic integral kernels as
   `flatearth_minmass.py`, evaluated at each $(r_j, z_k)$ with $z_k > 0$
-  (below surface).
+  ($z_k$ is depth below surface; pass $z_k$ directly as the kernel argument).
 - The $\|\cdot\|_\infty$ field constraint linearizes to $2 n_{\rm obs}$
   inequality constraints on $[g_z - g_0, g_r]$.
 - Start with coarse grid ($n_r = n_z = 50$) to verify sparsity of solution,
