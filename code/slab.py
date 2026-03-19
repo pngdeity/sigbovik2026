@@ -23,7 +23,7 @@ print(d)
 # --- Parameters ---
 disk_r    = 0.5
 g0        = 1.0
-epsilon   = 0.00125
+epsilon   = 0.000625
 n_src     = 8000
 n_obs     = 800
 n_z       = 25
