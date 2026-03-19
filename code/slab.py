@@ -24,9 +24,9 @@ print(d)
 disk_r    = 0.5
 g0        = 1.0
 epsilon   = 0.005
-n_src     = 5000
-n_obs     = 500
-n_z       = 50
+n_src     = 2000
+n_obs     = 200
+n_z       = 25
 smoothing = 5e-3
 R_ext     = 2 * 4.0
 
@@ -113,38 +113,36 @@ with torch.no_grad():
 # --- Optimization ---
 log_b = torch.full((n_src,), np.log(b0_val), **d, requires_grad=True)
 
-optimizer = torch.optim.Adam([log_b], lr=3e-3)
-scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=3000, eta_min=1e-4)
+n_steps = 4000
 
-def run_opt(lam, n_steps=2000, log_every=500):
-    for step in range(n_steps):
-        optimizer.zero_grad()
-        b = torch.exp(log_b)
+optimizer = torch.optim.Adam([log_b], lr=1e-2)
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=n_steps, eta_min=1e-4)
 
-        gz, gr = SlabField.apply(b)
+for step in range(n_steps):
+    optimizer.zero_grad()
+    b = torch.exp(log_b)
 
-        mass    = 2 * np.pi * (b * r_src * dr).sum()
-        err     = torch.sqrt((gz - g0)**2 + gr**2)
-        # penalty = torch.relu(err - epsilon).sum().pow(4)
-        penalty = torch.relu(err - epsilon).pow(2).mean()
-        # smooth  = smoothing * log_b.diff().pow(2).mean()
-        smooth  = smoothing * (log_b.diff() / dr).pow(2).mean() * R_ext
-        loss    = mass + lam * penalty + smooth
+    # geometric lambda ramp: 1e4 → 1e9 over training
+    lam = 10 ** (4 + 5 * step / (n_steps - 1))
 
-        loss.backward()
-        optimizer.step()
-        scheduler.step()
+    gz, gr = SlabField.apply(b)
 
-        with torch.no_grad():
-            log_b.clamp_(-8, 2)
+    mass    = 2 * np.pi * (b * r_src * dr).sum()
+    err     = torch.sqrt((gz - g0)**2 + gr**2)
+    penalty = torch.relu(err - epsilon).pow(2).mean()
+    smooth  = smoothing * (log_b.diff() / dr).pow(2).mean() * R_ext
+    loss    = mass + lam * penalty + smooth
 
-        if step % log_every == 0:
-            print(f"  step={step:4d}: mass={mass.item():.4f}, "
-                  f"max_err={err.max().item():.4f}, smooth={smooth.item():.1f}")
+    loss.backward()
+    optimizer.step()
+    scheduler.step()
 
-for lam in [1e4, 1e5, 1e6, 1e7, 1e8]:
-    print(f"\n--- Lambda = {lam:.0e} ---")
-    run_opt(lam, n_steps=3000, log_every=1000)
+    with torch.no_grad():
+        log_b.clamp_(-8, 2)
+
+    if step % 500 == 0:
+        print(f"  step={step:4d}: mass={mass.item():.4f}, "
+              f"max_err={err.max().item():.4f}, lam={lam:.0e}")
 
 # --- Final evaluation ---
 # %% final
