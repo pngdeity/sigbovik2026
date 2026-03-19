@@ -113,7 +113,7 @@ with torch.no_grad():
 # --- Optimization ---
 log_b = torch.full((n_src,), np.log(b0_val), **d, requires_grad=True)
 
-n_steps = 6000
+n_steps = 15000
 
 optimizer = torch.optim.Adam([log_b], lr=1e-2)
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=n_steps, eta_min=1e-4)
