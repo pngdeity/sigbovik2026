@@ -28,7 +28,7 @@ n_src     = 8000
 n_obs     = 800
 n_z       = 25
 smoothing = 5e-3
-R_ext     = 2 * 4.0
+R_ext     = 3 * 4.0
 
 # --- Elliptic integral lookup tables ---
 N_table = 100_000
@@ -113,7 +113,7 @@ with torch.no_grad():
 # --- Optimization ---
 log_b = torch.full((n_src,), np.log(b0_val), **d, requires_grad=True)
 
-n_steps = 12000
+n_steps = 40000
 
 optimizer = torch.optim.Adam([log_b], lr=1e-2)
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=n_steps, eta_min=1e-4)
@@ -165,7 +165,7 @@ print(f"Max field error:    {err_np.max():.5f}  (ε={epsilon})")
 from solution_check import check_boundary_leakage
 z_grid = np.linspace(0, b_np.max(), 200)
 rho_2d = (z_grid[None, :] <= b_np[:, None]).astype(float)
-leak = check_boundary_leakage(rho_2d, r_src_np, z_grid)
+leak = check_boundary_leakage(rho_2d, r_src_np, z_grid, tol=0.001)
 print(f"Boundary fractions: { {k: f'{v:.4f}' for k, v in leak['boundary_fractions'].items()} }")
 if leak['leaking']:
     raise RuntimeError(
@@ -239,3 +239,4 @@ for f in ['/www/flatearth_results.npz', f'/www/flatearth/archive_vars/{datetime.
         R_ext=np.float64(R_ext),
     )
 print(f"Saved results to /www/flatearth_result.npz")
+
