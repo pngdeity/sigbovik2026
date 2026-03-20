@@ -64,7 +64,7 @@ for ts in TIMESTAMPS:
     ax.axhline(display_epsilon, color='r', ls='--',
                label=fr'$\varepsilon={display_epsilon}$')
     ax.set_ylim([0, 1.1 * display_epsilon])
-    ax.set_title(r'Gravity Deviation $|g(r) - g_0|$')
+    ax.set_title(r'Gravity Deviation $||g(r) - g_0||/||g_0||$')
     ax.set_xlabel(r'$r$')
     ax.legend()
 

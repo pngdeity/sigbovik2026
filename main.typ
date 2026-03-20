@@ -80,10 +80,10 @@ We can write the gravitational field $g : ℝ^3→ℝ^3$ at any point $x$ on the
 
 $
     g(x) //= integral_(ℝ^3) g(x, x') dif x'
-    = integral_(ℝ^3) G ρ(x') / (|x - x'|^2) dot.op (x' - x) / (|x - x'|) dif x'
+    = integral_(ℝ^3) G ρ(x') / (||x - x'||^2) dot.op (x' - x) / (||x - x'||) dif x'
 $
 
-Then the problem of finding a mass distribution which produces a uniform downward acceleration $g_0 = (0, 0, -1)$ m/s² may be stated
+Then the problem of finding a mass distribution which produces a uniform downward acceleration $g_0 = (0, 0, -1)$ may be stated
 
 #box(
     inset: 0.5em,
@@ -91,13 +91,13 @@ Then the problem of finding a mass distribution which produces a uniform downwar
     $
         // "Find a density distribution"
         "Find" ρ = arg min_ρ integral_(ℝ^3) ρ(x') dif x' \
-        "subject to" |g(x) - g_0| = 0 "for all" x ∈ D
+        "subject to" ||g(x) - g_0|| = 0 "for all" x ∈ D
     $
 )
 
 We look for a (not necessarily unique) minimum mass solution because this problem is underconstrained (e.g. doubling the distance of a point mass from an observer and quadrupling mass leaves gravitational force unchanged).
 
-By the identity theorem of harmonic functions, the requirement that $|g(x) - g_0| = 0$ on the disk $D$ would require infinite mass in $ρ(x')$ (e.g. an infinite uniform slab). However, relaxing the constraint to allow deviations in an ε-ball around $g_0$ permits solutions with finite mass.  Indeed, gravimetry measurements show variations in local gravity field on the surface of the Earth up to \~0.1% (ε=0.001) @anomaly7.
+By the identity theorem of harmonic functions, the requirement that $||g(x) - g_0|| = 0$ on the disk $D$ would require infinite mass in $ρ(x')$ (e.g. an infinite uniform slab). However, relaxing the constraint to allow deviations in an ε-ball around $g_0$ permits solutions with finite mass.  Indeed, gravimetry measurements show variations in local gravity field on the surface of the Earth up to \~0.1% (ε=0.001) @anomaly7.
 
 // FIXME - epsilon ball
 
@@ -110,7 +110,7 @@ The problem, restated, is
     $
         // "Find a density distribution"
         "Find" ρ = arg min_ρ integral_(ℝ^3) ρ(x') dif x' \
-        "subject to" |g(x) - g_0| ≤ ε|g_0| "for all" x ∈ D
+        "subject to" ||g(x) - g_0|| ≤ ε||g_0|| "for all" x ∈ D
     $ <statement>
     ]
 )
@@ -187,7 +187,7 @@ To solve the stated problem given in @statement, we convert it to a penalized un
         )
         + λ
         underbrace(
-            dot.op integral_D "ReLU"(|g(r) - g_0| - ε|g_0|) dif r,
+            dot.op integral_D "ReLU"(||g(r) - g_0|| - ε||g_0||) dif r,
             "gravity deviation penalty"
         )
     $
@@ -249,21 +249,21 @@ We thank Chester "Chet" Geebeedee for his assistance in validating the derivatio
 First write the gravity field at an observation point $x$ on the disk surface due to a point source of mass $x'$ beneath the disk.
 
 $
-    g(x, x') = G rho(x') / (|x - x'|) dot.op (x' - x) / (|x - x'|) = rho(x') dot.op (x' - x) / (|x - x'|^3)
+    g(x, x') = G rho(x') / (||x - x'||) dot.op (x' - x) / (||x - x'||) = rho(x') dot.op (x' - x) / (||x - x'||^3)
 $
 
 Integrating over all $x' ∈ ℝ$
 
 $
     g(x) = integral_(bb(R)^3) g(x, x') dif x'
-    = integral_(bb(R)^3) rho(x') dot.op (x' - x) / (|x - x'|^3) dif x'
+    = integral_(bb(R)^3) rho(x') dot.op (x' - x) / (||x - x'||^3) dif x'
 $
 
 Due to the assumed axial symmetry of $rho$, without loss of generality we can write in cylindrical coordinates:
 
 $
     x = vec(r, 0, 0) "and" x' = vec(r' cos theta', r' sin theta', z') \
-    x' - x = vec(r' cos theta' - r, r' sin theta', z') "and" |x' - x|^2 = r^2 + r'^2 - 2r r' cos theta' + z'^2
+    x' - x = vec(r' cos theta' - r, r' sin theta', z') "and" ||x' - x||^2 = r^2 + r'^2 - 2r r' cos theta' + z'^2
 $
 
 and reparameterize the density as $ρ(x') → ρ(r', z')$.
