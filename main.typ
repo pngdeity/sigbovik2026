@@ -80,7 +80,7 @@ We can write the gravitational field $g : ℝ^3→ℝ^3$ at any point $x$ on the
 
 $
     g(x) //= integral_(ℝ^3) g(x, x') dif x'
-    = integral_(ℝ^3) G ρ(x') / (|x - x'|^2) dot.op (x - x') / (|x - x'|) dif x'
+    = integral_(ℝ^3) G ρ(x') / (|x - x'|^2) dot.op (x' - x) / (|x - x'|) dif x'
 $
 
 Then the problem of finding a mass distribution which produces a uniform downward acceleration $g_0 = (0, 0, -1)$ m/s² may be stated
@@ -90,7 +90,7 @@ Then the problem of finding a mass distribution which produces a uniform downwar
     stroke: 1pt + gray,
     $
         // "Find a density distribution"
-        "Find" ρ(x') = arg min_ρ integral_(ℝ^3) ρ(x') dif x' \
+        "Find" ρ = arg min_ρ integral_(ℝ^3) ρ(x') dif x' \
         "subject to" |g(x) - g_0| = 0 "for all" x ∈ D
     $
 )
@@ -106,11 +106,13 @@ The problem, restated, is
 #box(
     inset: 0.5em,
     stroke: 1pt + gray,
+    [
     $
         // "Find a density distribution"
-        "Find" ρ(x') = arg min_ρ integral_(ℝ^3) ρ(x') dif x' \
+        "Find" ρ = arg min_ρ integral_(ℝ^3) ρ(x') dif x' \
         "subject to" |g(x) - g_0| ≤ ε|g_0| "for all" x ∈ D
-    $
+    $ <statement>
+    ]
 )
 
 // FIXME - cartesian figure here
@@ -131,7 +133,7 @@ Then the gravity field in cylindrical coordinates is
 $
     g_(r)(r) &=
     integral_0^(2 pi) integral_0^infinity integral_(-infinity)^0
-    (ρ(r', z') dot.op (r - r' cos theta'))
+    (ρ(r', z') dot.op (r' cos theta' - r))
     / (r^2 + r'^2 - 2 r r' cos theta' + z'^2)^(3/2)
     dif z' r' dif r' dif theta' \
 
@@ -139,7 +141,7 @@ $
 
     g_(z)(r) &=
     integral_0^(2 pi) integral_0^infinity integral_(-infinity)^0
-    (ρ(r', z') dot.op -z')
+    (ρ(r', z') dot.op z')
     / (r^2 + r'^2 - 2 r r' cos theta' + z'^2)^(3/2)
     dif z' r' dif r' dif theta' \
 $
@@ -156,7 +158,7 @@ In this section we define the Axially-Symmetric Slab (ASS) model for $ρ$, in wh
 
 #math.equation($
     ρ(r', z') := cases(
-    1 "if" 0 ≤ z' ≤ -b(r'),
+    1 "if" -b(r') ≤ z' ≤ 0,
     0 "else",
     )
 $)
@@ -173,7 +175,27 @@ where $-b(r')$ is a 1D profile that lower-bounds the slab when revolved around t
 
 = Results <results>
 
-@minmass_results shows the results from numerically optimizing $b(r)$.
+To solve the stated problem given in @statement, we convert it to a penalized unconstrained optimization, where the mass objective and ε-violation tradeoff are controlled by $λ$
+
+#math.equation(numbering: none,
+    $
+        b =
+        arg min_b
+        underbrace(
+            2 pi integral_(r') b(r') dif r',
+            "mass penalty"
+        )
+        + λ
+        underbrace(
+            dot.op integral_D "ReLU"(|g(r) - g_0| - ε|g_0|) dif r,
+            "gravity deviation penalty"
+        )
+    $
+)
+
+where ReLU (rectified linear unit) punishes gravity field violations above ε.
+
+@minmass_results shows the results from numerically optimizing $b$.
 
 The minimum-mass slab cross-section narrows with increasing field-error tolerance, with the optimal mass ranging from 2.36 (ε = 0.01) to 4.12 (ε = 0.001) in units of the target field strength. The corresponding gravity deviation profiles confirm that the error constraint is satisfied across the disk, with tighter tolerances producing thicker, more concentrated slabs beneath the disk center.
 
@@ -227,21 +249,21 @@ We thank Chester "Chet" Geebeedee for his assistance in validating the derivatio
 First write the gravity field at an observation point $x$ on the disk surface due to a point source of mass $x'$ beneath the disk.
 
 $
-    g(x, x') = G rho(x') / (|x - x'|) dot.op (x - x') / (|x - x'|) = rho(x') dot.op (x - x') / (|x - x'|^3)
+    g(x, x') = G rho(x') / (|x - x'|) dot.op (x' - x) / (|x - x'|) = rho(x') dot.op (x' - x) / (|x - x'|^3)
 $
 
 Integrating over all $x' ∈ ℝ$
 
 $
     g(x) = integral_(bb(R)^3) g(x, x') dif x'
-    = integral_(bb(R)^3) rho(x') dot.op (x - x') / (|x - x'|^3) dif x'
+    = integral_(bb(R)^3) rho(x') dot.op (x' - x) / (|x - x'|^3) dif x'
 $
 
 Due to the assumed axial symmetry of $rho$, without loss of generality we can write in cylindrical coordinates:
 
 $
     x = vec(r, 0, 0) "and" x' = vec(r' cos theta', r' sin theta', z') \
-    x - x' = vec(r - r' cos theta', -r' sin theta', -z') "and" |x - x'|^2 = r^2 + r'^2 - 2r r' cos theta' + z'^2
+    x' - x = vec(r' cos theta' - r, r' sin theta', z') "and" |x' - x|^2 = r^2 + r'^2 - 2r r' cos theta' + z'^2
 $
 
 and reparameterize the density as $ρ(x') → ρ(r', z')$.
@@ -254,7 +276,7 @@ $
     integral_(theta') integral_(r') integral_(z')
     rho(r', z')
     / (r^2 + r'^2 - 2 r r' cos theta' + z'^2)^(3/2)
-    vec(r - r'cos theta', -r' sin theta', -z')
+    vec(r' cos theta' - r, r' sin theta', z')
     dif z' r' dif r' dif theta' \
     // &#gt([substituting flat slab parameterization $b(r')$ of $rho$]) \
 
@@ -262,7 +284,7 @@ $
     integral_0^(2 pi) integral_0^infinity integral_(-infinity)^0
     rho(r', z')
     / (r^2 + r'^2 - 2 r r' cos theta' + z'^2)^(3/2)
-    vec(r - r'cos theta', -r' sin theta', -z')
+    vec(r' cos theta' - r, r' sin theta', z')
     dif z' r' dif r' dif theta' \
     &#gt([note that the y component is an odd function in $theta'$]) \
 
@@ -270,7 +292,7 @@ $
     integral_0^(2 pi) integral_0^infinity integral_(-infinity)^0
     rho(r', z')
     / (r^2 + r'^2 - 2 r r' cos theta' + z'^2)^(3/2)
-    vec(r - r'cos theta', 0, -z')
+    vec(r' cos theta' - r, 0, z')
     dif z' r' dif r' dif theta'
 $
 
@@ -279,13 +301,13 @@ Then we are left with only radial and vertical components of the gravity field, 
 $
     g_(r)(r) &=
     integral_0^(2 pi) integral_0^infinity integral_(-infinity)^0
-    rho(r', z') dot.op (r - r' cos theta')
+    rho(r', z') dot.op (r' cos theta' - r)
     / (r^2 + r'^2 - 2 r r' cos theta' + z'^2)^(3/2)
     dif z' r' dif r' dif theta' \
 
     g_(z)(r) &=
     integral_0^(2 pi) integral_0^infinity integral_(-infinity)^0
-    rho(r', z') dot.op (-z')
+    rho(r', z') dot.op z'
     / (r^2 + r'^2 - 2 r r' cos theta' + z'^2)^(3/2)
     dif z' r' dif r' dif theta' \
 $
@@ -301,8 +323,8 @@ $
 yields
 
 $
-    integral_0^(2 pi) (r - r' cos theta') / Delta^(3/2) d theta'
-    &= 2 / (r M) lr([K(k) - (r'^2 - r^2 + z'^2) / m^2 E(k)]) \
+    integral_0^(2 pi) (r' cos theta' - r) / Delta^(3/2) d theta'
+    &= 2 / (r M) lr([(r'^2 - r^2 + z'^2) / m^2 E(k) - K(k)]) \
 
     integral_0^(2 pi) 1 / Delta^(3/2) dif theta'
     &= (4 E(k)) / (m^2 M)
@@ -314,12 +336,12 @@ $
     g_(r)(r) &=
     integral_0^infinity integral_(-infinity)^0
     rho(r', z') 2 / (r M)
-    lr([K(k) - (r'^2 - r^2 + z'^2) / m^2 E(k)])
+    lr([(r'^2 - r^2 + z'^2) / m^2 E(k) - K(k)])
     dif z' r' dif r' \
 
     g_(z)(r) &=
     integral_0^infinity integral_(-infinity)^0
-    rho(r', z') (-z' 4 E(k)) / (m^2 M)
+    rho(r', z') (z' 4 E(k)) / (m^2 M)
     dif z' r' dif r'
 $
 
@@ -330,25 +352,25 @@ Substituting the ASS model for $ρ$ into $g_r$ and $g_z$ from the previous secti
 $
     g_(r)(r) &=
     integral_0^(2 pi) integral_0^infinity integral_(-b(r'))^0
-    1 dot.op (r - r' cos theta')
+    1 dot.op (r' cos theta' - r)
     / (r^2 + r'^2 - 2 r r' cos theta' + z'^2)^(3/2)
     dif z' r' dif r' dif theta' \
 
     &=
     integral_0^infinity integral_(-b(r'))^0
     1 dot.op 2 / (r M)
-    lr([K(k) - (r'^2 - r^2 + z'^2) / m^2 E(k)])
+    lr([(r'^2 - r^2 + z'^2) / m^2 E(k) - K(k)])
     dif z' r' dif r' \
 
     g_(z)(r) &=
     integral_0^(2 pi) integral_0^infinity integral_(-b(r'))^0
-    1 dot.op (-z')
+    1 dot.op z'
     / (r^2 + r'^2 - 2 r r' cos theta' + z'^2)^(3/2)
     dif z' r' dif r' dif theta' \
 
     &=
     integral_0^infinity integral_(-b(r'))^0
-    1 dot.op (-z' 4 E(k)) / (m^2 M)
+    1 dot.op (z' 4 E(k)) / (m^2 M)
     dif z' r' dif r'
 $
 
@@ -358,39 +380,39 @@ $
     dif / (dif b(r')) [g_(r)(r)]
     &=
     integral_0^(2 pi) 0 -
-    (r - r' cos theta')
+    (r' cos theta' - r)
     / (r^2 + r'^2 - 2 r r' cos theta' + b(r')^2)^(3/2) (-1)
     r' dif theta' \
 
     &=
     integral_0^(2 pi)
-    (r - r' cos theta')
+    (r' cos theta' - r)
     / (r^2 + r'^2 - 2 r r' cos theta' + b(r')^2)^(3/2)
     r' dif theta' \
 
     &=
-    r' 2 / (r M) lr([K(k) - (r'^2 - r^2 + b(r')^2) / m^2 E(k)])
+    r' 2 / (r M) lr([(r'^2 - r^2 + b(r')^2) / m^2 E(k) - K(k)])
 $
 
 $
     dif / (dif b(r')) [g_(z)(r)]
     &=
     integral_0^(2 pi) 0 -
-    -(-b(r'))
+    (-b(r'))
     / (r^2 + r'^2 - 2 r r' cos theta' + b(r')^2)^(3/2) (-1)
     r' dif theta' \
 
     &=
     integral_0^(2 pi)
-    b(r')
+    (-b(r'))
     / (r^2 + r'^2 - 2 r r' cos theta' + b(r')^2)^(3/2)
     r' dif theta' \
 
     &=
-    (4 r' b(r') E(k)) / (m^2 M)
+    (-4 r' b(r') E(k)) / (m^2 M)
 $
 
-where $k$, $m$, $M$ are as defined above, evaluated at $z' = b(r')$.
+where $k$, $m$, $M$ are as defined above, evaluated at $z' = -b(r')$.
 
 This eliminates the $r'$ and $z'$ integrals and greatly accelerates optimization as compared to autograd through the 2 numerical integrations involved in computing $g_r$ and $g_z$.
 

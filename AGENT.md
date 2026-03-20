@@ -14,10 +14,14 @@ where the kernels, obtained by azimuthal integration of the 3D Green's
 function, are:
 
 $$K_z(r,r',z') = \frac{4z'\,E(k^2)}{\beta\,\alpha^2}, \qquad
-  K_r(r,r',z') = \frac{2}{r\,\beta}\left[\frac{r^2-r'^2-z'^2}{\alpha^2}E(k^2)+K(k^2)\right]$$
+  K_r(r,r',z') = \frac{2}{r\,\beta}\left[\frac{r'^2-r^2+z'^2}{\alpha^2}E(k^2)-K(k^2)\right]$$
 
 with $\alpha^2=(r-r')^2+z'^2$, $\beta^2=(r+r')^2+z'^2$, $k^2=4rr'/\beta^2$,
 and $K$, $E$ the complete elliptic integrals of the first and second kind.
+
+Sign convention: $z'$ is a coordinate (negative below the disk), so $g_z < 0$
+means downward and $g_0 = (0, 0, -1)$.  Note that the numerical code uses
+depth $\tilde{z} = -z' > 0$ and $g_0 = +1$, which is equivalent.
 
 The field constraint is:
 
@@ -50,8 +54,8 @@ fields to within ε. Fine-scale ripples and notches in b(r) under the disk
 mass; they are numerical artifacts of high n_src and can be suppressed with a
 smoothness penalty. The Jacobian of the field with respect to the boundary is obtained by evaluating the kernels at $z'=-b(r')$:
 
-$$\frac{\partial g_z(r)}{\partial b(r')} = \frac{4\,b(r')\,E(k^2)}{\beta\,\alpha^2}\cdot r', \qquad
-  \frac{\partial g_r(r)}{\partial b(r')} = \frac{2r'}{r\,\beta}\left[\frac{r^2-r'^2-b(r')^2}{\alpha^2}E(k^2)+K(k^2)\right]$$
+$$\frac{\partial g_z(r)}{\partial b(r')} = \frac{-4\,b(r')\,E(k^2)}{\beta\,\alpha^2}\cdot r', \qquad
+  \frac{\partial g_r(r)}{\partial b(r')} = \frac{2r'}{r\,\beta}\left[\frac{r'^2-r^2+b(r')^2}{\alpha^2}E(k^2)-K(k^2)\right]$$
 
 with $\alpha^2=(r-r')^2+b(r')^2$, $\beta^2=(r+r')^2+b(r')^2$, $k^2=4rr'/\beta^2$.
 
