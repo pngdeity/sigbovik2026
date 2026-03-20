@@ -24,11 +24,13 @@
 
 = Abstract
 
-The flat Earth model, in which the Earth is a disk or cylindrical slab of uniform density, predicts a gravitational field that varies significantly with distance from the center — inconsistent with ground-based gravimetry measurements showing deviations of less than 0.07% from standard 1g acceleration. In this work, we investigate whether relaxing the uniform-density assumption of the cylindrical slab model can reconcile the flat Earth hypothesis with observed gravimetric data. We introduce the Axially-Symmetric Slab (ASS) parameterization, which allows the slab thickness to vary as a function of radius, and pose the problem of finding a density profile that minimizes gravity field non-uniformity over the disk surface. Using a differentiable forward model and numerical optimization, we identify slab profiles that produce gravity field deviations within gravimetric survey limits. Our results demonstrate that a non-uniform flat Earth mass distribution can produce a gravitational field indistinguishable from measurements, offering a quantitative response to one of the primary physical objections to the flat Earth model.
+The flat Earth model, in which the Earth is a disk or cylindrical slab of uniform density, predicts under classical Newtonian mechanics a gravitational field that varies significantly over the Earth's surface — inconsistent with global gravimetry measurements showing deviations of less than 0.1% from standard 1g acceleration. In this work, we investigate whether allowing variable thickness of the cylindrical slab can reduce the gravity variations. We introduce the Axially-Symmetric Slab (ASS) model, which allows the slab thickness to vary as a function of radius, and pose the problem of finding a density profile that minimizes total mass while keeping field non-uniformity over the disk surface below a chosen threshold. Using a differentiable forward model and numerical optimization, we identify slab profiles that satisfy these constraints. Our results demonstrate that a non-uniform flat Earth mass distribution can produce a gravitational field consistent with deviation observed in gravimetric surveys, offering a quantitative response to one of the primary physical objections to the flat Earth model.
 
 = Introduction
 
 For nearly 200 years a fierce debate over the true nature of our world has been ongoing between those who believe the Earth is shaped like a sphere/geoid (known as "sphericists"/"globe-heads") and those who think the earth is a flat disk or slab ("flat-earthers"/"flerfs").
+
+While early discussions of flat earth were often published as pamphlets steeped in arguments of religious fundamentalism @rowbotham, modern discourse has shifted to venues with significantly more scientific peer review, such as Facebook comments.  Despite the change, significant disagreement occurs between the two communities.
 
 One such point of contention between these two groups is the issue of the uniformity of gravity.  While a sphere of constant density naturally has consistent, nadir-pointing gravitational acceleration over its surface, on a disk a person walking from the center towards the edge will experience increasing gravitational resistance as if they are walking uphill, shown in @intro1.  Extensive gravimetric surveys that show local deviations from standard 1 g acceleration of no more than 0.1% (ε=0.001) @anomaly7, as in @anomalymap.
 
@@ -40,15 +42,15 @@ One such point of contention between these two groups is the issue of the unifor
 
 #figure(
     image("figures/anomaly_scratch.jpg", width: 25em),
-    caption: [Gravity anomaly map from GOCE spacecraft]
+    caption: [Gravity anomaly map from GOCE spacecraft. \ 1000 mGal $approx$ 0.001 g]
 ) <anomalymap>
 
-While not all flat-earthers believe in a gravitational force (e.g. preferring the view that the Earth is accelerating upwards at 1 g), for the sake of argument we assume that the classical model of gravity holds.  We also do not address theories adjacent to flat Earth, such as hollow Earth (concave or convex), infinite-plane Earth, toroidal Earth, Klein-bottle Earth or cosmic turtles.
+While not all flat-earthers believe in a gravitational force (e.g. preferring the view that the Earth is accelerating upwards at 1 g), for the sake of argument we assume that the classical model of gravity holds.  We also do not address theories adjacent to flat Earth, such as hollow Earth (convex or concave), infinite-plane Earth, toroidal Earth, Klein-bottle Earth or cosmic turtles.
 
 In this manuscript, we show that by relaxing the cylindrical slab assumption slightly, it is possible to achieve a gravity field uniformity consistent with gravimetric measurements over the Earth's surface.  We provide some examples found numerically #footnote([Code available at https://github.com/evidlo/sigbovik2026]).
 We hope that by constructing these examples of mass distributions,  we can put to rest this specific counter-argument and better understand our (flat) world.
 
-In the following sections, we define the physics that relate mass distribution to gravity vector field at the Earth's surface, propose two extensions to the simple cylindrical slab model of Earth and approaches to numerically evaluate them, and finally show a numerical analysis of these models.
+In the following sections, we define the physics that relate mass distribution to gravity vector field at the Earth's surface, propose an extension to the simple cylindrical slab model of Earth and an approach for numerical evaluation, and finally show a solutions that meet gravimetry constraints.
 
 // = Problem Formulation
 
@@ -65,7 +67,7 @@ In this section we establish the physics of the flat Earth mass distribution pro
 
 == Arbitrary Mass Distribution
 
-Let $D$ be an origin-centered disk with diameter 1 in the $z=0$ plane and $ρ:ℝ^3→ℝ$ be a non-negative scalar field representing mass density that is 0 for $z>0$.
+Let $D$ be an origin-centered disk with diameter 1 in the $z=0$ plane and $ρ:ℝ^3→ℝ$ be a non-negative scalar field representing Earth density that is 0 for $z>0$.
 
 #figure(
     image("figures/physics1.svg", width: 25em),
@@ -81,27 +83,35 @@ $
     = integral_(ℝ^3) G ρ(x') / (|x - x'|^2) dot.op (x - x') / (|x - x'|) dif x'
 $
 
-// FIXME - units, use -1
+Then the problem of finding a mass distribution which produces a uniform downward acceleration $g_0 = (0, 0, -1)$ m/s² may be stated
 
-Then the problem of finding a mass distribution which produces a uniform downward acceleration $g_0 = (0, 0, -9.81)$ m/s² may be stated
+#box(
+    inset: 0.5em,
+    stroke: 1pt + gray,
+    $
+        // "Find a density distribution"
+        "Find" ρ(x') = arg min_ρ integral_(ℝ^3) ρ(x') dif x' \
+        "subject to" |g(x) - g_0| = 0 "for all" x ∈ D
+    $
+)
 
-// FIXME - box outline statement?
+We look for a (not necessarily unique) minimum mass solution because this problem is underconstrained (e.g. doubling the distance of a point mass from an observer and quadrupling mass leaves gravitational force unchanged).
 
-$
-    "Find a density distribution" ρ(x') \
-    "which satisfies" |g(x) - g_0| = 0 "for all" x ∈ D
-$
-
-By the identity theorem of harmonic functions, the requirement that $|g(x) - g_0| = 0$ on the disk $D$ would require infinite mass in $ρ(x')$ (e.g. an infinite uniform slab). However, relaxing the problem to allow deviations in an ε-ball around $g_0$ permits solutions with finite mass.  Indeed, gravimetry measurements show variations in local gravity field on the surface of the Earth up to \~0.1% (ε=0.001) @anomaly7.
+By the identity theorem of harmonic functions, the requirement that $|g(x) - g_0| = 0$ on the disk $D$ would require infinite mass in $ρ(x')$ (e.g. an infinite uniform slab). However, relaxing the constraint to allow deviations in an ε-ball around $g_0$ permits solutions with finite mass.  Indeed, gravimetry measurements show variations in local gravity field on the surface of the Earth up to \~0.1% (ε=0.001) @anomaly7.
 
 // FIXME - epsilon ball
 
 The problem, restated, is
 
-$
-    "Find a density distribution" ρ(x') \
-    "which satisfies" |g(x) - g_0| ≤ ε|g_0| "for all" x ∈ D
-$
+#box(
+    inset: 0.5em,
+    stroke: 1pt + gray,
+    $
+        // "Find a density distribution"
+        "Find" ρ(x') = arg min_ρ integral_(ℝ^3) ρ(x') dif x' \
+        "subject to" |g(x) - g_0| ≤ ε|g_0| "for all" x ∈ D
+    $
+)
 
 // FIXME - cartesian figure here
 
@@ -134,15 +144,15 @@ $
     dif z' r' dif r' dif theta' \
 $
 
-and the angular component $g_θ$ is 0 due to symmetry (see @derivation).
+and the angular component $g_θ$ is 0 due to symmetry (see Appendix @derivation).
 
 // = Mass Distribution Models
 
 // == Overhang Cylinder Parameterization <cylinder>
 
-= Axially-Symmetric Slab Parameterization <parameterization>
+= Axially-Symmetric Slab Model <parameterization>
 
-In this section we define the Axially-Symmetric Slab (ASS) parameterization, in which a slab of unit density is bounded above by $z'=0$ and below by $z'=-b(r')$.  In this case, the mass distribution is
+In this section we define the Axially-Symmetric Slab (ASS) model for $ρ$, in which a slab of unit density is bounded above by $z'=0$ and below by $z'=-b(r')$.  In this case, the mass distribution is
 
 #math.equation($
     ρ(r', z') := cases(
@@ -151,9 +161,15 @@ In this section we define the Axially-Symmetric Slab (ASS) parameterization, in 
     )
 $)
 
-where $-b(r')$ is a 1D profile that lower-bounds the slab when revolved.
+where $-b(r')$ is a 1D profile that lower-bounds the slab when revolved around the $z$ axis.
 
 // FIXME - illustration of -b(r')
+
+#figure(
+    image("figures/ass1.svg"),
+    caption: "Example ASS models and associated b(r') profiles"
+)
+
 
 = Results <results>
 
@@ -170,14 +186,20 @@ The minimum-mass slab cross-section narrows with increasing field-error toleranc
         image("figures/figure_0.001.png"),
     ),
     caption: [],
-    placement: top,
+    placement: bottom,
     scope: "parent",
 ) <minmass_results>
 
 
 = Conclusion and Future Work
 
-In this work we discuss the issue of gravity uniformity in the flat model of the Earth.  By allowing small deviations in the gravity field from a nadir pointing unit-vector, we show that an axially-symmetric slab of mass can produce a field that is consistent with ground-based gravimetry measurements.
+In this work we discuss the issue of gravity uniformity in the flat model of the Earth.  By allowing small deviations in the gravity field from a nadir pointing unit-vector, we show that an axially-symmetric slab of mass can produce a field that is consistent with global gravimetry surveys.
+
+Potential future directions for research could include
+
+- bounds on total mass required to meet a given ε constraint
+- variable density besides $ρ = {0, 1}$
+- counteracting inward-pointing gravity field of the cylindrical slab model by spinning the Earth to add centrifugal force
 
 // Furthermore, by numerically minimizing slab mass, we demonstrate an inverse relationship between max gravity field deviation and total mass.
 
@@ -303,7 +325,7 @@ $
 
 == ASS Gravity Field
 
-Substituting the ASS parameterization for $ρ$ into $g_r$ and $g_z$ from the previous section
+Substituting the ASS model for $ρ$ into $g_r$ and $g_z$ from the previous section
 
 $
     g_(r)(r) &=

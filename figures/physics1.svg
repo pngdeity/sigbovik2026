@@ -26,12 +26,12 @@
      inkscape:document-units="mm"
      showgrid="true"
      inkscape:zoom="1.6245783"
-     inkscape:cx="260.99081"
-     inkscape:cy="67.709881"
-     inkscape:window-width="1914"
-     inkscape:window-height="1049"
+     inkscape:cx="261.29858"
+     inkscape:cy="68.017651"
+     inkscape:window-width="1594"
+     inkscape:window-height="848"
      inkscape:window-x="0"
-     inkscape:window-y="25"
+     inkscape:window-y="49"
      inkscape:window-maximized="1"
      inkscape:current-layer="layer1"
      showborder="true"
@@ -214,35 +214,11 @@
          style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.35px;font-family:NewComputerModern10;-inkscape-font-specification:NewComputerModern10;fill:#000000;stroke:none;stroke-width:1"
          x="28.348999"
          y="15.242112">z</tspan></text>
-    <text
-       xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:4.23333px;line-height:1;font-family:NewComputerModern10;-inkscape-font-specification:NewComputerModern10;text-align:justify;text-decoration:none;text-decoration-line:none;text-decoration-color:#000000;fill:#888a85;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:4, 2;stroke-opacity:1;-inkscape-stroke:none;paint-order:markers fill stroke;stop-color:#000000"
-       x="80.027519"
-       y="24.993814"
-       id="text2-4-3-6"><tspan
-         sodipodi:role="line"
-         id="tspan2-4-3-9"
-         style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:4.23333px;font-family:NewComputerModern10;-inkscape-font-specification:NewComputerModern10;text-align:center;text-anchor:middle;fill:#888a85;stroke:none;stroke-width:1"
-         x="80.027519"
-         y="24.993814">ice</tspan><tspan
-         sodipodi:role="line"
-         style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:4.23333px;font-family:NewComputerModern10;-inkscape-font-specification:NewComputerModern10;text-align:center;text-anchor:middle;fill:#888a85;stroke:none;stroke-width:1"
-         x="80.027519"
-         y="29.227144"
-         id="tspan8">wall</tspan></text>
     <path
        style="font-variation-settings:normal;opacity:1;vector-effect:none;fill:#ef2929;fill-opacity:1;fill-rule:evenodd;stroke:#ef2929;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;-inkscape-stroke:none;paint-order:markers fill stroke;stop-color:#000000;stop-opacity:1"
        d="M 80.000002,35.766664 H 110"
        id="path7"
        sodipodi:nodetypes="cc" />
-    <path
-       style="font-variation-settings:normal;opacity:1;vector-effect:none;fill:none;fill-opacity:1;fill-rule:evenodd;stroke:#888a85;stroke-width:1;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;-inkscape-stroke:none;paint-order:markers fill stroke;stop-color:#000000;stop-opacity:1"
-       d="M 80,35.766663 V 32.031672"
-       id="path8" />
-    <path
-       style="font-variation-settings:normal;vector-effect:none;fill:none;fill-opacity:1;fill-rule:evenodd;stroke:#888a85;stroke-width:1;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;-inkscape-stroke:none;paint-order:markers fill stroke;stop-color:#000000"
-       d="M 110,35.766664 V 32.031673"
-       id="path8-7" />
     <path
        style="font-variation-settings:normal;vector-effect:none;fill:none;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;-inkscape-stroke:none;marker-end:url(#Triangle-2);paint-order:markers fill stroke;stop-color:#000000"
        d="M 95.000001,35.766664 V 20"
