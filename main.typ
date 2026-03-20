@@ -136,14 +136,13 @@ $
 
 and the angular component $g_θ$ is 0 due to symmetry (see @derivation).
 
-= Mass Distribution Models
+// = Mass Distribution Models
 
+// == Overhang Cylinder Parameterization <cylinder>
 
-== Overhang Cylinder Parameterization <cylinder>
+= Axially-Symmetric Slab Parameterization <parameterization>
 
-== Axially-Symmetric Slab Parameterization <parameterization>
-
-In this section we define the Axially-Symmetric Slab (ASS) parameterization, a generalization of the overhang cylinder model which allows the height of the cylinder to vary with radius.  In this case, the mass distribution is
+In this section we define the Axially-Symmetric Slab (ASS) parameterization, in which a slab of unit density is bounded above by $z'=0$ and below by $z'=-b(r')$.  In this case, the mass distribution is
 
 #math.equation($
     ρ(r', z') := cases(
@@ -158,10 +157,27 @@ where $-b(r')$ is a 1D profile that lower-bounds the slab when revolved.
 
 = Results <results>
 
+@minmass_results shows the results from numerically optimizing $b(r)$.
+
+The minimum-mass slab cross-section narrows with increasing field-error tolerance, with the optimal mass ranging from 2.36 (ε = 0.01) to 4.12 (ε = 0.001) in units of the target field strength. The corresponding gravity deviation profiles confirm that the error constraint is satisfied across the disk, with tighter tolerances producing thicker, more concentrated slabs beneath the disk center.
+
+#figure(
+    grid(
+        columns: (1fr, 1fr, 1fr),
+        gutter: 12pt,
+        image("figures/figure_0.01.png"),
+        image("figures/figure_0.005.png"),
+        image("figures/figure_0.001.png"),
+    ),
+    caption: [],
+    placement: top,
+    scope: "parent",
+) <minmass_results>
+
 
 = Conclusion and Future Work
 
-In this work we discuss the issue of gravity uniformity in the flat model of the Earth.  By allowing small deviations in the gravity field from a nadir pointing unit-vector, we show that an axially-symmetric slab of mass can produce a field that is consistent with ground-based gravimetry measurements (FIXME: cite).
+In this work we discuss the issue of gravity uniformity in the flat model of the Earth.  By allowing small deviations in the gravity field from a nadir pointing unit-vector, we show that an axially-symmetric slab of mass can produce a field that is consistent with ground-based gravimetry measurements.
 
 // Furthermore, by numerically minimizing slab mass, we demonstrate an inverse relationship between max gravity field deviation and total mass.
 
@@ -263,28 +279,26 @@ $
 yields
 
 $
-    integral_0^(2 pi) (d theta') / Delta^(3/2)
-    &= (4 E(k)) / (m^2 M) \
-
     integral_0^(2 pi) (r - r' cos theta') / Delta^(3/2) d theta'
-    &= 2 / (r M) lr([K(k) - (r'^2 - r^2 + z'^2) / m^2 E(k)])
+    &= 2 / (r M) lr([K(k) - (r'^2 - r^2 + z'^2) / m^2 E(k)]) \
+
+    integral_0^(2 pi) 1 / Delta^(3/2) dif theta'
+    &= (4 E(k)) / (m^2 M)
 $
 
 where $K(k)$ and $E(k)$ are the complete elliptic integrals of the first and second kind. Substituting:
 
 $
     g_(r)(r) &=
-    2 / r
     integral_0^infinity integral_(-infinity)^0
-    rho(r', z') r' / M
+    rho(r', z') 2 / (r M)
     lr([K(k) - (r'^2 - r^2 + z'^2) / m^2 E(k)])
-    dif z' dif r' \
+    dif z' r' dif r' \
 
     g_(z)(r) &=
-    -4
     integral_0^infinity integral_(-infinity)^0
-    rho(r', z') (r' z' E(k)) / (m^2 M)
-    dif z' dif r'
+    rho(r', z') (-z' 4 E(k)) / (m^2 M)
+    dif z' r' dif r'
 $
 
 == ASS Gravity Field
@@ -298,11 +312,22 @@ $
     / (r^2 + r'^2 - 2 r r' cos theta' + z'^2)^(3/2)
     dif z' r' dif r' dif theta' \
 
+    &=
+    integral_0^infinity integral_(-b(r'))^0
+    1 dot.op 2 / (r M)
+    lr([K(k) - (r'^2 - r^2 + z'^2) / m^2 E(k)])
+    dif z' r' dif r' \
+
     g_(z)(r) &=
     integral_0^(2 pi) integral_0^infinity integral_(-b(r'))^0
     1 dot.op (-z')
     / (r^2 + r'^2 - 2 r r' cos theta' + z'^2)^(3/2)
     dif z' r' dif r' dif theta' \
+
+    &=
+    integral_0^infinity integral_(-b(r'))^0
+    1 dot.op (-z' 4 E(k)) / (m^2 M)
+    dif z' r' dif r'
 $
 
 As we are doing a numerical optimization of the gravity field, the derivative with respect to $b(r')$ is of interest.  Applying the fundamental theorem of calculus, we get
@@ -315,12 +340,14 @@ $
     / (r^2 + r'^2 - 2 r r' cos theta' + b(r')^2)^(3/2) (-1)
     r' dif theta' \
 
-
     &=
     integral_0^(2 pi)
     (r - r' cos theta')
     / (r^2 + r'^2 - 2 r r' cos theta' + b(r')^2)^(3/2)
-    r' dif theta'
+    r' dif theta' \
+
+    &=
+    r' 2 / (r M) lr([K(k) - (r'^2 - r^2 + b(r')^2) / m^2 E(k)])
 $
 
 $
@@ -331,15 +358,21 @@ $
     / (r^2 + r'^2 - 2 r r' cos theta' + b(r')^2)^(3/2) (-1)
     r' dif theta' \
 
-
     &=
     integral_0^(2 pi)
     b(r')
     / (r^2 + r'^2 - 2 r r' cos theta' + b(r')^2)^(3/2)
-    r' dif theta'
+    r' dif theta' \
+
+    &=
+    (4 r' b(r') E(k)) / (m^2 M)
 $
 
+where $k$, $m$, $M$ are as defined above, evaluated at $z' = b(r')$.
 
-== Rescaling to SI Units
+This eliminates the $r'$ and $z'$ integrals and greatly accelerates optimization as compared to autograd through the 2 numerical integrations involved in computing $g_r$ and $g_z$.
+
+// == Rescaling to SI Units
+// FIXME
 
 #bibliography("refs.bib")

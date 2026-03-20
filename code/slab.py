@@ -23,7 +23,7 @@ print(d)
 # --- Parameters ---
 disk_r    = 0.5
 g0        = 1.0
-epsilon   = 0.000625
+epsilon   = 0.001
 n_src     = 8000
 n_obs     = 800
 n_z       = 25
@@ -113,7 +113,7 @@ with torch.no_grad():
 # --- Optimization ---
 log_b = torch.full((n_src,), np.log(b0_val), **d, requires_grad=True)
 
-n_steps = 40000
+n_steps = 20000
 
 optimizer = torch.optim.Adam([log_b], lr=1e-2)
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=n_steps, eta_min=1e-4)
@@ -210,8 +210,9 @@ plt.tight_layout()
 fig.text(0.01, 0.01, text:=f'n_src={n_src}  n_obs={n_obs}  n_z={n_z} smooth={smoothing:.2e}',
          fontsize=8, color='gray', va='bottom', ha='left')
 print(text)
+ts = datetime.now(UTC).isoformat()
 plt.savefig('/www/flatearth/minmass.png', dpi=75)
-plt.savefig(f'/www/flatearth/archive/minmass_{datetime.now(UTC).isoformat()}.png', dpi=150)
+plt.savefig(f'/www/flatearth/archive/minmass_{ts}.png', dpi=150)
 print("Saved to /www/flatearth/minmass.png")
 
 # save settings and error for later reference
@@ -224,7 +225,7 @@ with open('/www/flatearth/minmass.tsv', 'a') as f:
     f.write('\t'.join(map(str, variables)) + '\n')
 
 
-for f in ['/www/flatearth_results.npz', f'/www/flatearth/archive_vars/{datetime.now(UTC).isoformat()}.npz']:
+for f in ['/www/flatearth_results.npz', f'/www/flatearth/archive_vars/{ts}.npz']:
     np.savez(
         f,
         b_opt=b_np, r_src=r_src_np,
